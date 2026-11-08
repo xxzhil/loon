@@ -2,7 +2,7 @@
 #!desc=拦截 PCDN 边缘节点域名（派培优/PPio 等），避免被当作 PCDN 节点跑量。规则来源：DuoJLa/Loon 的 PCDN-Block.list
 #!author=DuoJLa
 #!homepage=https://raw.githubusercontent.com/DuoJLa/Loon/main/pcdn-block/PCDN-Block.list
-
+#!icon=https://status.vyxh.top/pcdn-icon.png
 [Rule]
 DOMAIN-SUFFIX,solseedr.cn,REJECT
 DOMAIN-SUFFIX,solseed.cn,REJECT
