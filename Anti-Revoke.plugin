@@ -1,0 +1,19 @@
+#!name=防掉签 · 屏蔽证书检测
+#!desc=屏蔽 Apple 证书状态/企业App验证域名，降低自签应用被检测吊销的概率。装新App前先停用本插件，首次打开成功后再启用。
+#!author=Muse
+#!homepage=https://www.sign.lc/
+#!icon=https://status.vyxh.top/pcdn-icon.png
+
+[Rule]
+# 企业 App 验证（周期性复检主要走这个）
+DOMAIN,ppq.apple.com,REJECT
+# OCSP 证书状态查询
+DOMAIN,ocsp.apple.com,REJECT
+DOMAIN,ocsp2.apple.com,REJECT
+# 证书验证服务组（Apple 企业网络文档列明）
+DOMAIN,valid.apple.com,REJECT
+DOMAIN,crl.apple.com,REJECT
+DOMAIN,certs.apple.com,REJECT
+# 社区防掉签名单常见项
+DOMAIN,appattest.apple.com,REJECT
+DOMAIN,vpp.itunes.apple.com,REJECT
