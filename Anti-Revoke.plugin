@@ -1,5 +1,5 @@
 #!name=防掉签 · 屏蔽证书检测
-#!desc=屏蔽 Apple 证书状态/企业App验证域名，降低自签应用被检测吊销的概率。装新App前先停用本插件，首次打开成功后再启用。
+#!desc=屏蔽 Apple 证书状态/企业App验证域名，降低自签应用被检测吊销的概率。装新App前先停用本插件，首次打开成功后再启用。已经过期或者掉签了的证书，插件无法生效
 #!author=Muse
 #!homepage=https://www.sign.lc/
 #!icon=https://status.vyxh.top/pcdn-icon.png
