@@ -1,9 +1,12 @@
 #!name=APNs 推送分流
-#!desc=让 Apple 推送服务(APNs)流量走代理，解决大陆网络下 Telegram、WhatsApp 等应用退到后台收不到推送的问题。需配合 Loon 设置里的「路由系统服务」开启使用（否则系统推送流量不进隧道，本插件不起作用）。
+#!desc=让 Apple 推送服务(APNs)流量走代理，解决大陆网络下 Telegram、WhatsApp 等应用退到后台收不到推送的问题。前提：Loon 设置里的「路由系统服务」保持开启。使用方法：安装后打开本插件页面，在策略处把 PROXY 选为你自己的代理策略组即可。
 #!author=Muse
 #!homepage=https://github.com/xxzhil/loon
+#!date=2026-11-11
 
 [Rule]
+# 策略 PROXY 是 Loon 插件官方的可变量策略位（见官方插件文档「插件规则可用策略」）：
+# 它不是某个固定策略组的名字，安装后 Loon 会在本插件页面生成策略组选择项，由使用者选自己的组。
 # APNs 推送域名：apsd 与苹果推送服务器的长连接（courier.push.apple.com 等，端口 5223/443）
 DOMAIN-SUFFIX,push.apple.com,PROXY
 # Apple 全段地址：APNs 服务器全部位于 17.0.0.0/8（Apple 官方企业网络文档），兜住不走域名的直连 IP 连接
