@@ -1,6 +1,8 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
-// 数据:api.ip.sb/geoip(主,https)/ ip-api.com(备) — 与 Loon 面板同一套
-// 界面:粉彩渐变背景(Kaggle 模型设计)+ 每字段独立配色 + 圆体感系统字体
+// v1.1:标题图标改用系统 SF Symbol(远程大图在小组件里加载失败且吃内存,官方亦建议少用图);
+//       归属地改「国家 · 城市」短组合 + 值文本弹性宽度,解决截断;
+//       新增「类型 / 风险」两行(与 Loon 面板版同款数据源);全部请求带超时,慢源不会拖死渲染。
+// 数据:api.ip.sb/geoip(主,https)/ ip-api.com(备);质量:proxycheck.io + ip-api 扩展字段
 // 显示手机当前默认出口(经 Loon 默认策略);刷新节奏由 iOS 决定,底部有更新时间
 import { HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
 
@@ -15,16 +17,31 @@ type IpInfo = {
   asText: string
 }
 
+type Quality = {
+  typeText: string
+  risk: number | null
+}
+
 function flagEmoji(cc: string): string {
   if (!cc || cc.length !== 2) return "🌐"
   const up = cc.toUpperCase()
   return String.fromCodePoint(0x1f1e6 + up.charCodeAt(0) - 65, 0x1f1e6 + up.charCodeAt(1) - 65)
 }
 
-async function loadData(): Promise<IpInfo> {
+function fetchJson(url: string, ms: number): Promise<any> {
+  const timeout = new Promise<any>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), ms)
+  )
+  return Promise.race([
+    fetch(url).then((r) => r.json()),
+    timeout,
+  ])
+}
+
+async function loadBasic(): Promise<IpInfo> {
   try {
-    const r = await fetch("https://api.ip.sb/geoip")
-    const d = await r.json()
+    const d = await fetchJson("https://api.ip.sb/geoip", 6000)
+    if (!d || !d.ip) throw new Error("ip.sb empty")
     return {
       ip: d.ip ?? "",
       country: d.country ?? "",
@@ -36,11 +53,11 @@ async function loadData(): Promise<IpInfo> {
       asText: d.asn ? `AS${d.asn}` : "",
     }
   } catch (e) {
-    const r2 = await fetch(
-      "http://ip-api.com/json/?lang=zh-CN&fields=status,query,country,countryCode,regionName,city,isp,org,as"
+    const d = await fetchJson(
+      "http://ip-api.com/json/?lang=zh-CN&fields=status,query,country,countryCode,regionName,city,isp,org,as",
+      5000
     )
-    const d = await r2.json()
-    if (d.status !== "success") throw new Error("both sources failed")
+    if (!d || d.status !== "success") throw new Error("both sources failed")
     return {
       ip: d.query ?? "",
       country: d.country ?? "",
@@ -54,30 +71,83 @@ async function loadData(): Promise<IpInfo> {
   }
 }
 
-function Row(props: { label: string; value: string; color: string }) {
+function typeZh(t: string): string {
+  const m: Record<string, string> = {
+    Residential: "住宅",
+    Hosting: "机房",
+    Business: "商用",
+    VPN: "VPN",
+    Wireless: "移动网络",
+    Education: "教育网",
+    Government: "政府机构",
+  }
+  return m[t] || t
+}
+
+async function loadQuality(ip: string): Promise<Quality> {
+  let pc: any = null
+  let ia: any = null
+  const jobs = [
+    fetchJson(`https://proxycheck.io/v2/${ip}?vpn=1&asn=1&risk=1`, 4000)
+      .then((j) => {
+        if (j && j[ip]) pc = j[ip]
+      })
+      .catch(() => {}),
+    fetchJson(`http://ip-api.com/json/${ip}?fields=status,proxy,hosting,mobile`, 4000)
+      .then((j) => {
+        if (j && j.status === "success") ia = j
+      })
+      .catch(() => {}),
+  ]
+  await Promise.all(jobs)
+  let typeText = ""
+  if (ia && ia.hosting) typeText = "机房"
+  else if (ia && ia.mobile) typeText = "移动网络"
+  else if (pc && pc.type) typeText = typeZh(pc.type)
+  if (ia && ia.proxy) typeText = typeText ? typeText + " · 有代理特征" : "有代理特征"
+  const risk = pc && typeof pc.risk === "number" ? pc.risk : null
+  return { typeText, risk }
+}
+
+function riskLabel(risk: number): string {
+  return risk <= 33 ? "低风险" : risk <= 66 ? "中风险" : "高风险"
+}
+
+function riskColor(risk: number): string {
+  return risk <= 33 ? "#2B8A3E" : risk <= 66 ? "#F08C00" : "#E03131"
+}
+
+function Row(props: { label: string; value: string; color: string; size: number }) {
   return (
     <HStack spacing={2}>
-      <Text font={13} foregroundStyle="#333333">
+      <Text font={props.size} foregroundStyle="#333333" lineLimit={1}>
         {props.label}
       </Text>
-      <Text font={13} foregroundStyle={props.color} lineLimit={2}>
+      <Text
+        font={props.size}
+        foregroundStyle={props.color}
+        lineLimit={2}
+        frame={{ maxWidth: "infinity", alignment: "leading" }}
+      >
         {props.value}
       </Text>
     </HStack>
   )
 }
 
-function WidgetView(props: { d: IpInfo; time: string }) {
+function WidgetView(props: { d: IpInfo; q: Quality; time: string }) {
   const d = props.d
+  const q = props.q
   const small = Widget.family === "systemSmall"
+  const rowSize = small ? 12 : 13
   let loc = `${flagEmoji(d.code)} ${d.country}`
-  if (d.region && d.region !== d.country) loc += ` · ${d.region}`
-  if (d.city && d.city !== d.region) loc += ` · ${d.city}`
+  const place = d.city || d.region
+  if (place && place !== d.country) loc += ` · ${place}`
   return (
     <VStack
       alignment="leading"
-      spacing={5}
-      padding={16}
+      spacing={small ? 4 : 5}
+      padding={small ? 14 : 16}
       frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
       background={{
         gradient: [
@@ -89,23 +159,33 @@ function WidgetView(props: { d: IpInfo; time: string }) {
       }}
     >
       <HStack spacing={6}>
-        <Image
-          imageUrl="https://status.vyxh.top/ip-icon.png"
-          resizable
-          scaleToFit
-          frame={{ width: 26, height: 26 }}
-        />
-        <Text font={16} foregroundStyle="#333333">
+        <Image systemName="globe" resizable scaleToFit frame={{ width: 22, height: 22 }} />
+        <Text font={small ? 15 : 16} foregroundStyle="#333333">
           出口IP信息
         </Text>
       </HStack>
-      {d.ip ? <Row label="🖥 出口IP:" value={d.ip} color="#D6336C" /> : null}
-      {d.country ? <Row label="📍 归属地:" value={loc} color="#1971C2" /> : null}
-      {d.isp ? <Row label="📡 运营商:" value={d.isp} color="#E8590C" /> : null}
-      {!small && d.org && d.org !== d.isp ? (
-        <Row label="🏢 组织:" value={d.org} color="#2B8A3E" />
+      {d.ip ? <Row label="🖥 出口IP:" value={d.ip} color="#D6336C" size={rowSize} /> : null}
+      {d.country ? <Row label="📍 归属地:" value={loc} color="#1971C2" size={rowSize} /> : null}
+      {!small && d.isp ? (
+        <Row label="📡 运营商:" value={d.isp} color="#E8590C" size={rowSize} />
       ) : null}
-      {!small && d.asText ? <Row label="🔢 AS:" value={d.asText} color="#6741D9" /> : null}
+      {!small && d.org && d.org !== d.isp ? (
+        <Row label="🏢 组织:" value={d.org} color="#2B8A3E" size={rowSize} />
+      ) : null}
+      {!small && d.asText ? (
+        <Row label="🔢 AS:" value={d.asText} color="#6741D9" size={rowSize} />
+      ) : null}
+      {q.typeText ? (
+        <Row label="🏷 类型:" value={q.typeText} color="#1098AD" size={rowSize} />
+      ) : null}
+      {q.risk !== null ? (
+        <Row
+          label="🛡 风险:"
+          value={`${q.risk} 分 · ${riskLabel(q.risk)}`}
+          color={riskColor(q.risk)}
+          size={rowSize}
+        />
+      ) : null}
       <Spacer />
       <Text font={10} foregroundStyle="#888888">
         {`更新于 ${props.time}`}
@@ -126,10 +206,11 @@ function ErrorView() {
 
 async function main() {
   try {
-    const d = await loadData()
+    const d = await loadBasic()
+    const q: Quality = d.ip ? await loadQuality(d.ip) : { typeText: "", risk: null }
     const now = new Date()
     const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
-    Widget.present(<WidgetView d={d} time={time} />)
+    Widget.present(<WidgetView d={d} q={q} time={time} />)
   } catch (e) {
     Widget.present(<ErrorView />)
   }
