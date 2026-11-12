@@ -1,4 +1,8 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7:大号底部空旷区填充(用户选「两个都要」)—— ① 近24小时可用率条:7 个服务双列小条
+//       (数据来自状态页 uptimeList 的 <id>_24);② 逐帧波浪带:方块字正弦波,相位随分钟推进,
+//       每次刷新走一帧(iOS 小组件无持续动画,这是唯一可行的「动法」)。
+// v1.6.2:修标签截断 —— 「☁️ Cloudflare:」缩为「☁️ CF:」、「🤖 ChatGPT:」缩为「🤖 GPT:」(原标签在双栏里被挤成省略号)。
 // v1.6.1:修复 v1.6 玻璃版内容空白 —— 根视图的 glassEffect 让整个内容树渲染失败(真机只剩空玻璃框)。
 //        改法:背景干脆不画(不设 background、不加 glassEffect),内容直接落在 iOS 26 系统小组件
 //        自带的透明玻璃外壳上(用户主屏已是 Clear 风格),这才是系统推荐的小组件玻璃做法。
@@ -16,7 +20,7 @@
 //       新增类型/风险行;请求超时保护。
 // 数据:api.ip.sb/geoip(主)/ ip-api.com(备);质量:proxycheck.io + ip-api 扩展字段
 // 显示手机当前默认出口(经 Loon 默认策略);刷新节奏由 iOS 决定
-import { Button, HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
+import { Button, HStack, Image, Rectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
 import { RefreshWidgetIntent } from "./app_intents"
 
 type IpInfo = {
@@ -54,6 +58,7 @@ type SvcItem = {
   name: string
   up: boolean
   ping: number | null
+  uptime: number | null
 }
 
 type StatusInfo = {
@@ -295,10 +300,12 @@ async function loadStatus(): Promise<StatusInfo | null> {
         const last = beats.length ? beats[beats.length - 1] : null
         const up = !!last && last.status === 1
         if (up) upCount++
+        const rawUp = hb && hb.uptimeList ? hb.uptimeList[String(m.id) + "_24"] : null
         items.push({
           name: SVC_SHORT[m.id as number] || String(m.name || m.id),
           up,
           ping: last && typeof last.ping === "number" ? last.ping : null,
+          uptime: typeof rawUp === "number" ? rawUp : null,
         })
       }
     }
@@ -332,6 +339,51 @@ function SectionTitle(props: { text: string }) {
     <Text font={12} foregroundStyle="label">
       {props.text}
     </Text>
+  )
+}
+
+function UptimeRow(props: { name: string; ratio: number | null }) {
+  const pct = props.ratio === null ? null : Math.round(props.ratio * 1000) / 10
+  const color = pct === null ? "#999999" : pct >= 99.9 ? "#2B8A3E" : pct >= 99 ? "#F08C00" : "#E03131"
+  const barW = 62
+  const fillW = pct === null ? 0 : Math.max(2, Math.round((barW * pct) / 100))
+  return (
+    <HStack spacing={4}>
+      <Text font={10} foregroundStyle="label" lineLimit={1} frame={{ width: 58, alignment: "leading" }}>
+        {props.name}
+      </Text>
+      <ZStack alignment="leading">
+        <Rectangle fill="#CED4DA" frame={{ width: barW, height: 5 }} cornerRadius={2.5} />
+        <Rectangle fill={color} frame={{ width: fillW, height: 5 }} cornerRadius={2.5} />
+      </ZStack>
+      <Text font={10} foregroundStyle={color} lineLimit={1}>
+        {pct === null ? "—" : pct >= 100 ? "100%" : `${pct.toFixed(1)}%`}
+      </Text>
+    </HStack>
+  )
+}
+
+// 逐帧波浪:相位随分钟推进,每次刷新画面前进一帧
+function WaveStrip() {
+  const chars = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+  const colors = ["#74C0FC", "#74C0FC", "#9775FA", "#9775FA", "#F783AC", "#F783AC", "#FFA94D", "#FFA94D"]
+  const phase = Math.floor(Date.now() / 60000) % 32
+  const cells = []
+  for (let i = 0; i < 30; i++) {
+    const v = Math.sin((i + phase) * 0.55) * 0.5 + 0.5
+    const idx = Math.min(7, Math.floor(v * 8))
+    cells.push(
+      <Text key={`w${i}`} font={13} foregroundStyle={colors[idx]}>
+        {chars[idx]}
+      </Text>
+    )
+  }
+  return (
+    <HStack spacing={0}>
+      <Spacer />
+      {cells}
+      <Spacer />
+    </HStack>
   )
 }
 
@@ -407,6 +459,13 @@ function WidgetView(props: {
     )
   }
 
+  const upA = st
+    ? st.items.slice(0, 4).map((it) => <UptimeRow key={`u${it.name}`} name={it.name} ratio={it.uptime} />)
+    : []
+  const upB = st
+    ? st.items.slice(4).map((it) => <UptimeRow key={`u${it.name}`} name={it.name} ratio={it.uptime} />)
+    : []
+
   return (
     <VStack
       alignment="leading"
@@ -454,7 +513,7 @@ function WidgetView(props: {
             <Row label="🎞 Netflix:" value={ex.netflix.text} color={ex.netflix.color} size={rowSize} />
             <Row label="📺 YouTube:" value={ex.youtube.text} color={ex.youtube.color} size={rowSize} />
             <Row label="🎵 TikTok:" value={ex.tiktok.text} color={ex.tiktok.color} size={rowSize} />
-            <Row label="🤖 ChatGPT:" value={ex.chatgpt.text} color={ex.chatgpt.color} size={rowSize} />
+            <Row label="🤖 GPT:" value={ex.chatgpt.text} color={ex.chatgpt.color} size={rowSize} />
             <SectionTitle
               text={st ? `📡 服务状态 ${st.upCount}/${st.total} 正常` : "📡 服务状态"}
             />
@@ -465,6 +524,24 @@ function WidgetView(props: {
         infoRows
       )}
       <Spacer />
+      {wide ? (
+        <VStack alignment="leading" spacing={5}>
+          {st ? (
+            <VStack alignment="leading" spacing={3}>
+              <SectionTitle text="📈 近24小时可用率" />
+              <HStack spacing={14} alignment="top">
+                <VStack alignment="leading" spacing={3}>
+                  {upA}
+                </VStack>
+                <VStack alignment="leading" spacing={3}>
+                  {upB}
+                </VStack>
+              </HStack>
+            </VStack>
+          ) : null}
+          <WaveStrip />
+        </VStack>
+      ) : null}
     </VStack>
   )
 }
