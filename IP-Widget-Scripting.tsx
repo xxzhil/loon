@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.6:背景改为 iOS 26 Liquid Glass 玻璃质感(UIGlass 浅粉 tint),透出壁纸色彩;
+//       标签文字改用系统自适应色(label/secondaryLabel),深浅壁纸都可读;刷新按钮改玻璃样式。
 // v1.5:刷新双保险 —— present 时向系统申请 15 分钟后自动刷新(系统按预算批准);
 //       标题行加「刷新」按钮(交互意图,见 app_intents.tsx),点一下立即重拉全部数据。
 // v1.4:双栏右栏新增「服务状态」—— 读 Uptime Kuma 公开状态页 API(status.vyxh.top),
@@ -12,7 +14,7 @@
 //       新增类型/风险行;请求超时保护。
 // 数据:api.ip.sb/geoip(主)/ ip-api.com(备);质量:proxycheck.io + ip-api 扩展字段
 // 显示手机当前默认出口(经 Loon 默认策略);刷新节奏由 iOS 决定
-import { Button, HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
+import { Button, HStack, Image, Spacer, Text, UIGlass, VStack, Widget } from "scripting"
 import { RefreshWidgetIntent } from "./app_intents"
 
 type IpInfo = {
@@ -308,7 +310,7 @@ async function loadStatus(): Promise<StatusInfo | null> {
 function Row(props: { label: string; value: string; color: string; size: number }) {
   return (
     <HStack spacing={2}>
-      <Text font={props.size} foregroundStyle="#333333" lineLimit={1}>
+      <Text font={props.size} foregroundStyle="label" lineLimit={1}>
         {props.label}
       </Text>
       <Text
@@ -325,7 +327,7 @@ function Row(props: { label: string; value: string; color: string; size: number 
 
 function SectionTitle(props: { text: string }) {
   return (
-    <Text font={12} foregroundStyle="#333333">
+    <Text font={12} foregroundStyle="label">
       {props.text}
     </Text>
   )
@@ -409,27 +411,23 @@ function WidgetView(props: {
       spacing={4}
       padding={small ? 13 : 14}
       frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
-      background={{
-        gradient: [
-          { color: "#ff9a9e", location: 0 },
-          { color: "#fadfd8", location: 1 },
-        ],
-        startPoint: { x: 0, y: 0 },
-        endPoint: { x: 1, y: 1 },
+      glassEffect={{
+        glass: UIGlass.regular().tint("rgba(255, 170, 196, 0.30)"),
+        shape: { type: "rect", cornerRadius: 0 },
       }}
     >
       <HStack spacing={6}>
         <Image systemName="globe" resizable scaleToFit frame={{ width: 20, height: 20 }} />
-        <Text font={15} foregroundStyle="#333333">
+        <Text font={15} foregroundStyle="label">
           出口IP信息
         </Text>
         <Spacer />
         {!small ? (
-          <Text font={9} foregroundStyle="#888888">
+          <Text font={9} foregroundStyle="secondaryLabel">
             {`更新于 ${props.time}`}
           </Text>
         ) : null}
-        <Button title="刷新" systemImage="arrow.clockwise" intent={RefreshWidgetIntent(undefined)} />
+        <Button title="刷新" systemImage="arrow.clockwise" buttonStyle="glass" intent={RefreshWidgetIntent(undefined)} />
       </HStack>
       {wide ? (
         <HStack spacing={14} alignment="top">
