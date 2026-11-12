@@ -2,7 +2,8 @@
  * 出口IP信息面板 — Loon Generic Script(面板脚本)
  * 由 Muse 与 Kaggle 上的 Qwen3-14B 联合开发
  *
- * 数据源:api.ip.sb/geoip(主) / ip-api.com(备)
+ * 数据源:api.ip.sb/geoip(主) / ip-api.com(备);质量行:proxycheck.io(类型/风险)+ ip-api 扩展字段(机房/移动判定)
+ * 质量模块的划分与数据源参考 MaYIHEI「节点 IP 质量检测」(github.com/MaYIHEI/paperclip)
  * 用法:在仪表盘长按某个节点或策略,选择本脚本运行 -> 查询该节点的出口 IP;
  *       直接从脚本列表运行 -> 查询当前默认出口。
  * 返回格式同时带 Loon 的 htmlMessage 与通用 content/icon 字段。
@@ -28,16 +29,22 @@ var LINE_COLORS = [
   ["📡 运营商", "#E8590C"],
   ["🏢 组织", "#2B8A3E"],
   ["🔢 AS", "#6741D9"],
+  ["🏷 类型", "#1098AD"],
+  ["🛡 风险", "#2B8A3E"],
   ["🚀 节点", "#0B7285"],
   ["🛑 查询失败", "#E03131"]
 ];
 
+// 个别行的颜色按数值动态决定(如风险等级),优先于上表
+var DYNAMIC_COLORS = {};
+
 function colorLine(line) {
   for (var i = 0; i < LINE_COLORS.length; i++) {
     if (line.indexOf(LINE_COLORS[i][0]) === 0) {
+      var color = DYNAMIC_COLORS[LINE_COLORS[i][0]] || LINE_COLORS[i][1];
       var idx = line.indexOf(":");
-      if (idx < 0) return '<span style="color:' + LINE_COLORS[i][1] + ';">' + line + "</span>";
-      return line.slice(0, idx + 1) + '<span style="color:' + LINE_COLORS[i][1] + ';">' + line.slice(idx + 1) + "</span>";
+      if (idx < 0) return '<span style="color:' + color + ';">' + line + "</span>";
+      return line.slice(0, idx + 1) + '<span style="color:' + color + ';">' + line.slice(idx + 1) + "</span>";
     }
   }
   return line;
@@ -71,6 +78,8 @@ function finish(lines, ok) {
   });
 }
 
+var CURRENT_IP = "";
+
 function req(url) {
   var p = { url: url, timeout: 4000 };
   if (NODE) p.node = NODE;
@@ -79,6 +88,7 @@ function req(url) {
 
 function fromIpSb(data) {
   var d = JSON.parse(data);
+  CURRENT_IP = d.ip || "";
   var lines = [];
   if (d.ip) lines.push("🖥 出口IP:" + d.ip);
   var loc = flagEmoji(d.country_code) + " " + (d.country || "");
@@ -95,6 +105,7 @@ function fromIpSb(data) {
 function fromIpApi(data) {
   var d = JSON.parse(data);
   if (d.status !== "success") throw new Error("ip-api fail");
+  CURRENT_IP = d.query || "";
   var lines = [];
   if (d.query) lines.push("🖥 出口IP:" + d.query);
   var loc = flagEmoji(d.countryCode) + " " + (d.country || "");
@@ -108,10 +119,92 @@ function fromIpApi(data) {
   return lines;
 }
 
+// ---- IP 质量行(参考 MaYIHEI 节点 IP 质量检测的类型/风险模块) ----
+// 按 IP 查询,与节点走向无关,故走 DIRECT;任一源失败只是少一行,不影响基础信息
+function typeZh(t) {
+  var m = {
+    Residential: "住宅",
+    Hosting: "机房",
+    Business: "商用",
+    VPN: "VPN",
+    Wireless: "移动网络",
+    Education: "教育网",
+    Government: "政府机构"
+  };
+  return m[t] || t;
+}
+
+function qualityLines(pc, ia) {
+  var out = [];
+  var type = "";
+  if (ia && ia.hosting) type = "机房";
+  else if (ia && ia.mobile) type = "移动网络";
+  else if (pc && pc.type) type = typeZh(pc.type);
+  if (ia && ia.proxy) type = type ? type + " · 有代理特征" : "有代理特征";
+  if (type) out.push("🏷 类型:" + type);
+  if (pc && typeof pc.risk === "number") {
+    var r = pc.risk;
+    var lv = r <= 33 ? "低风险" : r <= 66 ? "中风险" : "高风险";
+    DYNAMIC_COLORS["🛡 风险"] = r <= 33 ? "#2B8A3E" : r <= 66 ? "#F08C00" : "#E03131";
+    out.push("🛡 风险:" + r + " 分 · " + lv);
+  }
+  return out;
+}
+
+function enrich(lines) {
+  var ip = CURRENT_IP;
+  if (!ip) {
+    finish(lines, true);
+    return;
+  }
+  var pc = null;
+  var ia = null;
+  var pending = 2;
+  function step() {
+    if (--pending > 0) return;
+    var q = qualityLines(pc, ia);
+    if (q.length) {
+      var idx = -1;
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf("🚀 节点") === 0) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx < 0) lines = lines.concat(q);
+      else lines = lines.slice(0, idx).concat(q).concat(lines.slice(idx));
+    }
+    finish(lines, true);
+  }
+  $httpClient.get(
+    { url: "https://proxycheck.io/v2/" + ip + "?vpn=1&asn=1&risk=1", node: "DIRECT", timeout: 4000 },
+    function (e, r, d) {
+      if (!e && d) {
+        try {
+          pc = JSON.parse(d)[ip] || null;
+        } catch (x) {}
+      }
+      step();
+    }
+  );
+  $httpClient.get(
+    { url: "http://ip-api.com/json/" + ip + "?fields=status,proxy,hosting,mobile", node: "DIRECT", timeout: 4000 },
+    function (e, r, d) {
+      if (!e && d) {
+        try {
+          var j = JSON.parse(d);
+          if (j.status === "success") ia = j;
+        } catch (x) {}
+      }
+      step();
+    }
+  );
+}
+
 $httpClient.get(req("https://api.ip.sb/geoip"), function (error, response, data) {
   if (!error && data) {
     try {
-      finish(fromIpSb(data), true);
+      enrich(fromIpSb(data));
       return;
     } catch (e) {}
   }
@@ -121,7 +214,7 @@ $httpClient.get(req("https://api.ip.sb/geoip"), function (error, response, data)
     function (error2, response2, data2) {
       if (!error2 && data2) {
         try {
-          finish(fromIpApi(data2), true);
+          enrich(fromIpApi(data2));
           return;
         } catch (e) {}
       }
