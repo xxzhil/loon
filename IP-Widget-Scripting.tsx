@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7.1:布局压缩 —— v1.7 真机总高度略超,百分比被挤成「99…」、底部波浪被裁掉一半、归属地被压成一行。
+//        主栏行距收紧(左 4→3、右 3→2)、可用率条 62→48、名称列 58→52、百分比固定宽、波浪字号 13→12。
 // v1.7:大号底部空旷区填充(用户选「两个都要」)—— ① 近24小时可用率条:7 个服务双列小条
 //       (数据来自状态页 uptimeList 的 <id>_24);② 逐帧波浪带:方块字正弦波,相位随分钟推进,
 //       每次刷新走一帧(iOS 小组件无持续动画,这是唯一可行的「动法」)。
@@ -345,18 +347,18 @@ function SectionTitle(props: { text: string }) {
 function UptimeRow(props: { name: string; ratio: number | null }) {
   const pct = props.ratio === null ? null : Math.round(props.ratio * 1000) / 10
   const color = pct === null ? "#999999" : pct >= 99.9 ? "#2B8A3E" : pct >= 99 ? "#F08C00" : "#E03131"
-  const barW = 62
+  const barW = 48
   const fillW = pct === null ? 0 : Math.max(2, Math.round((barW * pct) / 100))
   return (
     <HStack spacing={4}>
-      <Text font={10} foregroundStyle="label" lineLimit={1} frame={{ width: 58, alignment: "leading" }}>
+      <Text font={10} foregroundStyle="label" lineLimit={1} frame={{ width: 52, alignment: "leading" }}>
         {props.name}
       </Text>
       <ZStack alignment="leading">
         <Rectangle fill="#CED4DA" frame={{ width: barW, height: 5 }} cornerRadius={2.5} />
         <Rectangle fill={color} frame={{ width: fillW, height: 5 }} cornerRadius={2.5} />
       </ZStack>
-      <Text font={10} foregroundStyle={color} lineLimit={1}>
+      <Text font={10} foregroundStyle={color} lineLimit={1} frame={{ width: 38, alignment: "leading" }}>
         {pct === null ? "—" : pct >= 100 ? "100%" : `${pct.toFixed(1)}%`}
       </Text>
     </HStack>
@@ -373,7 +375,7 @@ function WaveStrip() {
     const v = Math.sin((i + phase) * 0.55) * 0.5 + 0.5
     const idx = Math.min(7, Math.floor(v * 8))
     cells.push(
-      <Text key={`w${i}`} font={13} foregroundStyle={colors[idx]}>
+      <Text key={`w${i}`} font={12} foregroundStyle={colors[idx]}>
         {chars[idx]}
       </Text>
     )
@@ -469,7 +471,7 @@ function WidgetView(props: {
   return (
     <VStack
       alignment="leading"
-      spacing={4}
+      spacing={3}
       padding={small ? 13 : 14}
       frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
     >
@@ -488,7 +490,7 @@ function WidgetView(props: {
       </HStack>
       {wide ? (
         <HStack spacing={14} alignment="top">
-          <VStack alignment="leading" spacing={4} frame={{ maxWidth: "infinity" }}>
+          <VStack alignment="leading" spacing={3} frame={{ maxWidth: "infinity" }}>
             {infoRows}
             {d.org ? (
               <Row label="🏢 组织:" value={d.org} color="#2B8A3E" size={rowSize} />
@@ -508,7 +510,7 @@ function WidgetView(props: {
               size={rowSize}
             />
           </VStack>
-          <VStack alignment="leading" spacing={3} frame={{ maxWidth: "infinity" }}>
+          <VStack alignment="leading" spacing={2} frame={{ maxWidth: "infinity" }}>
             <SectionTitle text="🎬 流媒体与 AI" />
             <Row label="🎞 Netflix:" value={ex.netflix.text} color={ex.netflix.color} size={rowSize} />
             <Row label="📺 YouTube:" value={ex.youtube.text} color={ex.youtube.color} size={rowSize} />
@@ -530,10 +532,10 @@ function WidgetView(props: {
             <VStack alignment="leading" spacing={3}>
               <SectionTitle text="📈 近24小时可用率" />
               <HStack spacing={14} alignment="top">
-                <VStack alignment="leading" spacing={3}>
+                <VStack alignment="leading" spacing={2}>
                   {upA}
                 </VStack>
-                <VStack alignment="leading" spacing={3}>
+                <VStack alignment="leading" spacing={2}>
                   {upB}
                 </VStack>
               </HStack>
