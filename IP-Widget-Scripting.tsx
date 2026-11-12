@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.4:双栏右栏新增「服务状态」—— 读 Uptime Kuma 公开状态页 API(status.vyxh.top),
+//       显示 7 项自有服务的实时状态与延迟;延迟模块移至左栏平衡双栏高度。
 // v1.3:大号/特大号改双栏 —— 左栏基础信息+组织+时区,右栏「流媒体与 AI 解锁 + 延迟」;
 //       中号/小号维持单栏紧凑版。媒体探测:Netflix 双片状态码 / YouTube Premium 地区 /
 //       TikTok 页面地区 / ChatGPT trace;延迟:Cloudflare 与 Google 的 204 端点计时。
@@ -39,6 +41,18 @@ type Extras = {
   chatgpt: ServiceStatus
   cfMs: number | null
   ggMs: number | null
+}
+
+type SvcItem = {
+  name: string
+  up: boolean
+  ping: number | null
+}
+
+type StatusInfo = {
+  total: number
+  upCount: number
+  items: SvcItem[]
 }
 
 const UA =
@@ -245,6 +259,49 @@ async function loadExtras(): Promise<Extras> {
   }
 }
 
+// ---- VPS 服务状态(Uptime Kuma 公开状态页 API,免登录) ----
+const SVC_SHORT: Record<number, string> = {
+  6: "VLESS 节点",
+  7: "ShadowTLS",
+  8: "SS2022",
+  9: "SSH",
+  10: "状态页",
+  11: "MiBot",
+  12: "PM 中继",
+}
+
+async function loadStatus(): Promise<StatusInfo | null> {
+  try {
+    const rs = await Promise.all([
+      fetchJson("https://status.vyxh.top/api/status-page/main", 5000),
+      fetchJson("https://status.vyxh.top/api/status-page/heartbeat/main", 5000),
+    ])
+    const cfg = rs[0]
+    const hb = rs[1]
+    const items: SvcItem[] = []
+    let upCount = 0
+    const groups = (cfg && cfg.publicGroupList) || []
+    for (const g of groups) {
+      const list = (g && g.monitorList) || []
+      for (const m of list) {
+        const beats = (hb && hb.heartbeatList && hb.heartbeatList[String(m.id)]) || []
+        const last = beats.length ? beats[beats.length - 1] : null
+        const up = !!last && last.status === 1
+        if (up) upCount++
+        items.push({
+          name: SVC_SHORT[m.id as number] || String(m.name || m.id),
+          up,
+          ping: last && typeof last.ping === "number" ? last.ping : null,
+        })
+      }
+    }
+    if (!items.length) return null
+    return { total: items.length, upCount, items }
+  } catch (e) {
+    return null
+  }
+}
+
 function Row(props: { label: string; value: string; color: string; size: number }) {
   return (
     <HStack spacing={2}>
@@ -276,10 +333,17 @@ function isWideFamily(): boolean {
   return f === "systemLarge" || f === "systemExtraLarge" || f === "systemExtraLargePortrait"
 }
 
-function WidgetView(props: { d: IpInfo; q: Quality; x: Extras | null; time: string }) {
+function WidgetView(props: {
+  d: IpInfo
+  q: Quality
+  x: Extras | null
+  st: StatusInfo | null
+  time: string
+}) {
   const d = props.d
   const q = props.q
   const ex = props.x as Extras
+  const st = props.st
   const small = Widget.family === "systemSmall"
   const wide = isWideFamily() && props.x !== null
   const rowSize = wide ? 12 : small ? 12 : 13
@@ -317,6 +381,25 @@ function WidgetView(props: { d: IpInfo; q: Quality; x: Extras | null; time: stri
       />
     )
 
+  const svcRows: any[] = []
+  if (st) {
+    st.items.forEach((it, i) => {
+      svcRows.push(
+        <Row
+          key={`svc${i}`}
+          label={`${it.name}:`}
+          value={it.up ? `正常${it.ping !== null ? ` · ${it.ping}ms` : ""}` : "异常"}
+          color={it.up ? "#2B8A3E" : "#E03131"}
+          size={11}
+        />
+      )
+    })
+  } else if (wide) {
+    svcRows.push(
+      <Row key="svcx" label="状态页:" value="不可达" color="#E03131" size={11} />
+    )
+  }
+
   return (
     <VStack
       alignment="leading"
@@ -350,13 +433,6 @@ function WidgetView(props: { d: IpInfo; q: Quality; x: Extras | null; time: stri
               <Row label="🏢 组织:" value={d.org} color="#2B8A3E" size={rowSize} />
             ) : null}
             {d.tz ? <Row label="🕐 时区:" value={d.tz} color="#868E96" size={rowSize} /> : null}
-          </VStack>
-          <VStack alignment="leading" spacing={4} frame={{ maxWidth: "infinity" }}>
-            <SectionTitle text="🎬 流媒体与 AI" />
-            <Row label="🎞 Netflix:" value={ex.netflix.text} color={ex.netflix.color} size={rowSize} />
-            <Row label="📺 YouTube:" value={ex.youtube.text} color={ex.youtube.color} size={rowSize} />
-            <Row label="🎵 TikTok:" value={ex.tiktok.text} color={ex.tiktok.color} size={rowSize} />
-            <Row label="🤖 ChatGPT:" value={ex.chatgpt.text} color={ex.chatgpt.color} size={rowSize} />
             <SectionTitle text="⚡ 延迟" />
             <Row
               label="☁️ Cloudflare:"
@@ -370,6 +446,17 @@ function WidgetView(props: { d: IpInfo; q: Quality; x: Extras | null; time: stri
               color="#495057"
               size={rowSize}
             />
+          </VStack>
+          <VStack alignment="leading" spacing={3} frame={{ maxWidth: "infinity" }}>
+            <SectionTitle text="🎬 流媒体与 AI" />
+            <Row label="🎞 Netflix:" value={ex.netflix.text} color={ex.netflix.color} size={rowSize} />
+            <Row label="📺 YouTube:" value={ex.youtube.text} color={ex.youtube.color} size={rowSize} />
+            <Row label="🎵 TikTok:" value={ex.tiktok.text} color={ex.tiktok.color} size={rowSize} />
+            <Row label="🤖 ChatGPT:" value={ex.chatgpt.text} color={ex.chatgpt.color} size={rowSize} />
+            <SectionTitle
+              text={st ? `📡 服务状态 ${st.upCount}/${st.total} 正常` : "📡 服务状态"}
+            />
+            {svcRows}
           </VStack>
         </HStack>
       ) : (
@@ -394,10 +481,16 @@ async function main() {
   try {
     const d = await loadBasic()
     const q: Quality = d.ip ? await loadQuality(d.ip) : { typeText: "", risk: null }
-    const x: Extras | null = isWideFamily() ? await loadExtras() : null
+    let x: Extras | null = null
+    let st: StatusInfo | null = null
+    if (isWideFamily()) {
+      const both = await Promise.all([loadExtras(), loadStatus()])
+      x = both[0]
+      st = both[1]
+    }
     const now = new Date()
     const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
-    Widget.present(<WidgetView d={d} q={q} x={x} time={time} />)
+    Widget.present(<WidgetView d={d} q={q} x={x} st={st} time={time} />)
   } catch (e) {
     Widget.present(<ErrorView />)
   }
