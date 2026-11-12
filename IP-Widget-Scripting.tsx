@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.5:刷新双保险 —— present 时向系统申请 15 分钟后自动刷新(系统按预算批准);
+//       标题行加「刷新」按钮(交互意图,见 app_intents.tsx),点一下立即重拉全部数据。
 // v1.4:双栏右栏新增「服务状态」—— 读 Uptime Kuma 公开状态页 API(status.vyxh.top),
 //       显示 7 项自有服务的实时状态与延迟;延迟模块移至左栏平衡双栏高度。
 // v1.3:大号/特大号改双栏 —— 左栏基础信息+组织+时区,右栏「流媒体与 AI 解锁 + 延迟」;
@@ -10,7 +12,8 @@
 //       新增类型/风险行;请求超时保护。
 // 数据:api.ip.sb/geoip(主)/ ip-api.com(备);质量:proxycheck.io + ip-api 扩展字段
 // 显示手机当前默认出口(经 Loon 默认策略);刷新节奏由 iOS 决定
-import { HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
+import { Button, HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
+import { RefreshWidgetIntent } from "./app_intents"
 
 type IpInfo = {
   ip: string
@@ -421,9 +424,12 @@ function WidgetView(props: {
           出口IP信息
         </Text>
         <Spacer />
-        <Text font={9} foregroundStyle="#888888">
-          {`更新于 ${props.time}`}
-        </Text>
+        {!small ? (
+          <Text font={9} foregroundStyle="#888888">
+            {`更新于 ${props.time}`}
+          </Text>
+        ) : null}
+        <Button title="刷新" systemImage="arrow.clockwise" intent={RefreshWidgetIntent(undefined)} />
       </HStack>
       {wide ? (
         <HStack spacing={14} alignment="top">
@@ -490,7 +496,10 @@ async function main() {
     }
     const now = new Date()
     const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
-    Widget.present(<WidgetView d={d} q={q} x={x} st={st} time={time} />)
+    Widget.present(<WidgetView d={d} q={q} x={x} st={st} time={time} />, {
+      policy: "after",
+      date: new Date(Date.now() + 15 * 60 * 1000),
+    })
   } catch (e) {
     Widget.present(<ErrorView />)
   }
