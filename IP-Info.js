@@ -22,9 +22,10 @@ function flagEmoji(cc) {
 }
 
 function finish(lines, ok) {
-  var shown = lines.concat(["· v4 ·"]); // 诊断标记:确认真机跑的是不是最新脚本,定位后移除
   // 内容区样式:Kaggle 模型设计(粉彩渐变卡片),字体栈经 Muse 修正为 iOS 手写感字体打头
-  // 真机实测(2026-11-12):Loon 只渲染文字层 <p> 的样式,外层 div 的背景/对齐不生效,故全部样式挂在 <p> 上
+  // 真机实测结论(2026-11-12,经 v4 标记版验证):Loon 的 htmlMessage 只渲染字体类样式
+  // (字体/字号/粗细/颜色/阴影),背景、圆角、阴影框、居中一律不生效——内容区背景改不了;
+  // 下列样式中实际生效的是字体部分,其余为无害冗余,保留以待 Loon 渲染器改进。
   var style =
     "background: linear-gradient(135deg, #ff9a9e, #fadfd8);" +
     "border-radius: 15px;" +
@@ -38,10 +39,10 @@ function finish(lines, ok) {
     "line-height: 1.8;" +
     "margin: 0;" +
     "text-shadow: 1px 1px 2px #fff;";
-  var html = '<p style="' + style + '">' + shown.join("</br>") + "</p>";
+  var html = '<p style="' + style + '">' + lines.join("</br>") + "</p>";
   $done({
     title: "🌐 出口IP信息",
-    content: shown.join("\n"),
+    content: lines.join("\n"),
     htmlMessage: html,
     icon: "globe",
     "icon-color": ok ? "#007AFF" : "#FF3B30"
