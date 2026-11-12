@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.2:中号高度放不下 8 行会上下溢出裁切,故压缩布局 —— 更新时间并入标题行、
+//       组织行去掉(与运营商多为同一信息,面板版保留)、间距与内边距收紧。
 // v1.1:标题图标改用系统 SF Symbol(远程大图在小组件里加载失败且吃内存,官方亦建议少用图);
 //       归属地改「国家 · 城市」短组合 + 值文本弹性宽度,解决截断;
 //       新增「类型 / 风险」两行(与 Loon 面板版同款数据源);全部请求带超时,慢源不会拖死渲染。
@@ -146,8 +148,8 @@ function WidgetView(props: { d: IpInfo; q: Quality; time: string }) {
   return (
     <VStack
       alignment="leading"
-      spacing={small ? 4 : 5}
-      padding={small ? 14 : 16}
+      spacing={4}
+      padding={small ? 13 : 14}
       frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
       background={{
         gradient: [
@@ -159,18 +161,19 @@ function WidgetView(props: { d: IpInfo; q: Quality; time: string }) {
       }}
     >
       <HStack spacing={6}>
-        <Image systemName="globe" resizable scaleToFit frame={{ width: 22, height: 22 }} />
-        <Text font={small ? 15 : 16} foregroundStyle="#333333">
+        <Image systemName="globe" resizable scaleToFit frame={{ width: 20, height: 20 }} />
+        <Text font={15} foregroundStyle="#333333">
           出口IP信息
+        </Text>
+        <Spacer />
+        <Text font={9} foregroundStyle="#888888">
+          {`更新于 ${props.time}`}
         </Text>
       </HStack>
       {d.ip ? <Row label="🖥 出口IP:" value={d.ip} color="#D6336C" size={rowSize} /> : null}
       {d.country ? <Row label="📍 归属地:" value={loc} color="#1971C2" size={rowSize} /> : null}
       {!small && d.isp ? (
         <Row label="📡 运营商:" value={d.isp} color="#E8590C" size={rowSize} />
-      ) : null}
-      {!small && d.org && d.org !== d.isp ? (
-        <Row label="🏢 组织:" value={d.org} color="#2B8A3E" size={rowSize} />
       ) : null}
       {!small && d.asText ? (
         <Row label="🔢 AS:" value={d.asText} color="#6741D9" size={rowSize} />
@@ -187,9 +190,6 @@ function WidgetView(props: { d: IpInfo; q: Quality; time: string }) {
         />
       ) : null}
       <Spacer />
-      <Text font={10} foregroundStyle="#888888">
-        {`更新于 ${props.time}`}
-      </Text>
     </VStack>
   )
 }
