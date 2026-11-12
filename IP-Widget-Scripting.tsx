@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7.2:修两处截断 —— 归属地「Hong Kong · Central」在左栏一行放不下且不换行,改为按估算宽度
+//        决定是否带城市(过长只显示国家);可用率名称列 52→60、条 48→42(VLESS 节点/ShadowTLS 不再被截)。
 // v1.7.1:布局压缩 —— v1.7 真机总高度略超,百分比被挤成「99…」、底部波浪被裁掉一半、归属地被压成一行。
 //        主栏行距收紧(左 4→3、右 3→2)、可用率条 62→48、名称列 58→52、百分比固定宽、波浪字号 13→12。
 // v1.7:大号底部空旷区填充(用户选「两个都要」)—— ① 近24小时可用率条:7 个服务双列小条
@@ -347,11 +349,11 @@ function SectionTitle(props: { text: string }) {
 function UptimeRow(props: { name: string; ratio: number | null }) {
   const pct = props.ratio === null ? null : Math.round(props.ratio * 1000) / 10
   const color = pct === null ? "#999999" : pct >= 99.9 ? "#2B8A3E" : pct >= 99 ? "#F08C00" : "#E03131"
-  const barW = 48
+  const barW = 42
   const fillW = pct === null ? 0 : Math.max(2, Math.round((barW * pct) / 100))
   return (
     <HStack spacing={4}>
-      <Text font={10} foregroundStyle="label" lineLimit={1} frame={{ width: 52, alignment: "leading" }}>
+      <Text font={10} foregroundStyle="label" lineLimit={1} frame={{ width: 60, alignment: "leading" }}>
         {props.name}
       </Text>
       <ZStack alignment="leading">
@@ -410,7 +412,13 @@ function WidgetView(props: {
   const rowSize = wide ? 12 : small ? 12 : 13
   let loc = `${flagEmoji(d.code)} ${d.country}`
   const place = d.city || d.region
-  if (place && place !== d.country) loc += ` · ${place}`
+  if (place && place !== d.country) {
+    // 左栏一行宽度有限:估算显示宽度,过长时只显示国家,避免被截成 Hong Kon…
+    let w = 0
+    const full = `${d.country} · ${place}`
+    for (const ch of full) w += (ch.codePointAt(0) || 0) > 0x2e7f ? 1 : 0.58
+    if (w <= 8.4) loc += ` · ${place}`
+  }
 
   const infoRows: any[] = []
   if (d.ip)
