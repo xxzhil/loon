@@ -21,6 +21,28 @@ function flagEmoji(cc) {
   return String.fromCodePoint(0x1f1e6 + cc.charCodeAt(0) - 65, 0x1f1e6 + cc.charCodeAt(1) - 65);
 }
 
+// 每个字段值的配色:颜色是 Loon 渲染器确认可生效的文字层样式
+var LINE_COLORS = [
+  ["🖥 出口IP", "#D6336C"],
+  ["📍 归属地", "#1971C2"],
+  ["📡 运营商", "#E8590C"],
+  ["🏢 组织", "#2B8A3E"],
+  ["🔢 AS", "#6741D9"],
+  ["🚀 节点", "#0B7285"],
+  ["🛑 查询失败", "#E03131"]
+];
+
+function colorLine(line) {
+  for (var i = 0; i < LINE_COLORS.length; i++) {
+    if (line.indexOf(LINE_COLORS[i][0]) === 0) {
+      var idx = line.indexOf(":");
+      if (idx < 0) return '<span style="color:' + LINE_COLORS[i][1] + ';">' + line + "</span>";
+      return line.slice(0, idx + 1) + '<span style="color:' + LINE_COLORS[i][1] + ';">' + line.slice(idx + 1) + "</span>";
+    }
+  }
+  return line;
+}
+
 function finish(lines, ok) {
   // 内容区样式:Kaggle 模型设计(粉彩渐变卡片),字体栈经 Muse 修正为 iOS 手写感字体打头
   // 真机实测结论(2026-11-12,经 v4 标记版验证):Loon 的 htmlMessage 只渲染字体类样式
@@ -39,7 +61,7 @@ function finish(lines, ok) {
     "line-height: 1.8;" +
     "margin: 0;" +
     "text-shadow: 1px 1px 2px #fff;";
-  var html = '<p style="' + style + '">' + lines.join("</br>") + "</p>";
+  var html = '<p style="' + style + '">' + lines.map(colorLine).join("</br>") + "</p>";
   $done({
     title: "🌐 出口IP信息",
     content: lines.join("\n"),
