@@ -22,10 +22,22 @@ function flagEmoji(cc) {
 }
 
 function finish(lines, ok) {
-  var html =
-    '<p style="text-align: center; font-family: -apple-system; font-size: large;">' +
-    lines.join("</br>") +
-    "</p>";
+  // 内容区样式:Kaggle 模型设计(粉彩渐变卡片),字体栈经 Muse 修正为 iOS 手写感字体打头
+  var card =
+    "background: linear-gradient(135deg, #ff9a9e, #fadfd8);" +
+    "border-radius: 15px;" +
+    "padding: 20px 14px;" +
+    "box-shadow: 0 4px 14px rgba(255, 154, 158, 0.45);" +
+    "text-align: center;";
+  var text =
+    "font-family: 'Chalkboard SE', 'Comic Sans MS', 'Marker Felt', 'Apple Color Emoji', -apple-system, sans-serif;" +
+    "color: #333;" +
+    "font-size: 16px;" +
+    "font-weight: 600;" +
+    "line-height: 1.8;" +
+    "margin: 0;" +
+    "text-shadow: 1px 1px 2px #fff;";
+  var html = '<div style="' + card + '"><p style="' + text + '">' + lines.join("</br>") + "</p></div>";
   $done({
     title: "🌐 出口IP信息",
     content: lines.join("\n"),
