@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7.3:把「服务状态」的数据源抽成文件里的 CONFIG 区(见 SVC_SHORT 上方)—— 换成自己的 Uptime Kuma
+//        状态页只改两行;没有状态页把开关关掉,那两块自动隐藏。其余功能对任何人开箱即用。
 // v1.7.2:修两处截断 —— 归属地「Hong Kong · Central」在左栏一行放不下且不换行,改为按估算宽度
 //        决定是否带城市(过长只显示国家);可用率名称列 52→60、条 48→42(VLESS 节点/ShadowTLS 不再被截)。
 // v1.7.1:布局压缩 —— v1.7 真机总高度略超,百分比被挤成「99…」、底部波浪被裁掉一半、归属地被压成一行。
@@ -276,6 +278,18 @@ async function loadExtras(): Promise<Extras> {
 }
 
 // ---- VPS 服务状态(Uptime Kuma 公开状态页 API,免登录) ----
+// ================= 配置区(分享给别人用时改这里)=================
+// 「服务状态 + 近24小时可用率」的数据源:一个 Uptime Kuma 的公开状态页(免登录接口)。
+// 换成你自己的:把 STATUS_HOST 改成你的状态页域名,STATUS_SLUG 改成状态页网址里
+// /status/ 后面那段(例:https://example.com/status/main 的 slug 就是 main)。
+// 没有状态页:把 STATUS_ENABLED 改成 false,「服务状态」「可用率」两块自动隐藏,
+// 其余功能(出口IP / 归属地 / 类型 / 风险 / 流媒体 / 延迟)对任何人都是开箱即用、无需配置。
+const STATUS_ENABLED = true
+const STATUS_HOST = "https://status.vyxh.top"
+const STATUS_SLUG = "main"
+// ===============================================================
+
+// 监控项的显示短名(按你自己状态页里的监控 ID 改;不配也没关系,会自动用状态页里的原名)
 const SVC_SHORT: Record<number, string> = {
   6: "VLESS 节点",
   7: "ShadowTLS",
@@ -287,10 +301,11 @@ const SVC_SHORT: Record<number, string> = {
 }
 
 async function loadStatus(): Promise<StatusInfo | null> {
+  if (!STATUS_ENABLED) return null
   try {
     const rs = await Promise.all([
-      fetchJson("https://status.vyxh.top/api/status-page/main", 5000),
-      fetchJson("https://status.vyxh.top/api/status-page/heartbeat/main", 5000),
+      fetchJson(`${STATUS_HOST}/api/status-page/${STATUS_SLUG}`, 5000),
+      fetchJson(`${STATUS_HOST}/api/status-page/heartbeat/${STATUS_SLUG}`, 5000),
     ])
     const cfg = rs[0]
     const hb = rs[1]
@@ -463,7 +478,7 @@ function WidgetView(props: {
         />
       )
     })
-  } else if (wide) {
+  } else if (wide && STATUS_ENABLED) {
     svcRows.push(
       <Row key="svcx" label="状态页:" value="不可达" color="#E03131" size={11} />
     )
@@ -524,9 +539,11 @@ function WidgetView(props: {
             <Row label="📺 YouTube:" value={ex.youtube.text} color={ex.youtube.color} size={rowSize} />
             <Row label="🎵 TikTok:" value={ex.tiktok.text} color={ex.tiktok.color} size={rowSize} />
             <Row label="🤖 GPT:" value={ex.chatgpt.text} color={ex.chatgpt.color} size={rowSize} />
-            <SectionTitle
-              text={st ? `📡 服务状态 ${st.upCount}/${st.total} 正常` : "📡 服务状态"}
-            />
+            {STATUS_ENABLED ? (
+              <SectionTitle
+                text={st ? `📡 服务状态 ${st.upCount}/${st.total} 正常` : "📡 服务状态"}
+              />
+            ) : null}
             {svcRows}
           </VStack>
         </HStack>
