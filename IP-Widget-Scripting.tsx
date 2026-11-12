@@ -437,7 +437,7 @@ function WidgetView(props: {
             {d.tz ? <Row label="🕐 时区:" value={d.tz} color="#868E96" size={rowSize} /> : null}
             <SectionTitle text="⚡ 延迟" />
             <Row
-              label="☁️ Cloudflare:"
+              label="☁️ CF:"
               value={ex.cfMs !== null ? `${ex.cfMs} ms` : "超时"}
               color="#495057"
               size={rowSize}
