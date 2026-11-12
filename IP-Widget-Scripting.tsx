@@ -1,6 +1,8 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
-// v1.6:背景改为 iOS 26 Liquid Glass 玻璃质感(UIGlass 浅粉 tint),透出壁纸色彩;
-//       标签文字改用系统自适应色(label/secondaryLabel),深浅壁纸都可读;刷新按钮改玻璃样式。
+// v1.6.1:修复 v1.6 玻璃版内容空白 —— 根视图的 glassEffect 让整个内容树渲染失败(真机只剩空玻璃框)。
+//        改法:背景干脆不画(不设 background、不加 glassEffect),内容直接落在 iOS 26 系统小组件
+//        自带的透明玻璃外壳上(用户主屏已是 Clear 风格),这才是系统推荐的小组件玻璃做法。
+// v1.6(已废):自绘 Liquid Glass 背景,真机内容不渲染。
 // v1.5:刷新双保险 —— present 时向系统申请 15 分钟后自动刷新(系统按预算批准);
 //       标题行加「刷新」按钮(交互意图,见 app_intents.tsx),点一下立即重拉全部数据。
 // v1.4:双栏右栏新增「服务状态」—— 读 Uptime Kuma 公开状态页 API(status.vyxh.top),
@@ -14,7 +16,7 @@
 //       新增类型/风险行;请求超时保护。
 // 数据:api.ip.sb/geoip(主)/ ip-api.com(备);质量:proxycheck.io + ip-api 扩展字段
 // 显示手机当前默认出口(经 Loon 默认策略);刷新节奏由 iOS 决定
-import { Button, HStack, Image, Spacer, Text, UIGlass, VStack, Widget } from "scripting"
+import { Button, HStack, Image, Spacer, Text, VStack, Widget } from "scripting"
 import { RefreshWidgetIntent } from "./app_intents"
 
 type IpInfo = {
@@ -411,10 +413,6 @@ function WidgetView(props: {
       spacing={4}
       padding={small ? 13 : 14}
       frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
-      glassEffect={{
-        glass: UIGlass.regular().tint("rgba(255, 170, 196, 0.30)"),
-        shape: { type: "rect", cornerRadius: 0 },
-      }}
     >
       <HStack spacing={6}>
         <Image systemName="globe" resizable scaleToFit frame={{ width: 20, height: 20 }} />
@@ -427,7 +425,7 @@ function WidgetView(props: {
             {`更新于 ${props.time}`}
           </Text>
         ) : null}
-        <Button title="刷新" systemImage="arrow.clockwise" buttonStyle="glass" intent={RefreshWidgetIntent(undefined)} />
+        <Button title="刷新" systemImage="arrow.clockwise" intent={RefreshWidgetIntent(undefined)} />
       </HStack>
       {wide ? (
         <HStack spacing={14} alignment="top">
