@@ -4,6 +4,8 @@
  *
  * 数据源:api.ip.sb/geoip(主) / ip-api.com(备);质量行:proxycheck.io(类型/风险)+ ip-api 扩展字段(机房/移动判定)
  * 质量模块的划分与数据源参考 MaYIHEI「节点 IP 质量检测」(github.com/MaYIHEI/paperclip)
+ * 定时运行(插件内含 cron,每 15 分钟):查当前出口并与上次比对,出口 IP 变更时发通知;
+ * 带节点上下文的运行(长按节点查指定出口)不参与比对。
  * 用法:在仪表盘长按某个节点或策略,选择本脚本运行 -> 查询该节点的出口 IP;
  *       直接从脚本列表运行 -> 查询当前默认出口。
  * 返回格式同时带 Loon 的 htmlMessage 与通用 content/icon 字段。
@@ -50,7 +52,20 @@ function colorLine(line) {
   return line;
 }
 
+// 定时/手动查「当前出口」时比对出口 IP,变了就通知(cron 每 15 分钟跑一次实现定时刷新)
+function trackIpChange() {
+  try {
+    if (NODE || !CURRENT_IP) return;
+    var last = $persistentStore.read("ipinfo.last_ip");
+    if (last && last !== CURRENT_IP) {
+      $notification.post("出口 IP 已变更", "", last + " → " + CURRENT_IP);
+    }
+    $persistentStore.write(CURRENT_IP, "ipinfo.last_ip");
+  } catch (e) {}
+}
+
 function finish(lines, ok) {
+  if (ok) trackIpChange();
   // 内容区样式:Kaggle 模型设计(粉彩渐变卡片),字体栈经 Muse 修正为 iOS 手写感字体打头
   // 真机实测结论(2026-11-12,经 v4 标记版验证):Loon 的 htmlMessage 只渲染字体类样式
   // (字体/字号/粗细/颜色/阴影),背景、圆角、阴影框、居中一律不生效——内容区背景改不了;

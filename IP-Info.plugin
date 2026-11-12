@@ -1,5 +1,5 @@
 #!name = 出口IP信息
-#!desc = 面板脚本:查看当前出口或指定节点的 IP、归属地、运营商、AS 与 IP 质量(类型、风险评分)。长按节点/策略运行可查该节点出口,直接运行查当前出口。
+#!desc = 面板脚本:查看当前出口或指定节点的 IP、归属地、运营商、AS 与 IP 质量(类型、风险评分)。长按节点/策略运行可查该节点出口,直接运行查当前出口。内含 cron 每 15 分钟定时刷新当前出口,出口 IP 变更时发通知。
 #!author = Muse
 #!homepage = https://github.com/xxzhil/loon
 #!icon = https://status.vyxh.top/ip-icon.png
@@ -8,3 +8,5 @@
 
 [Script]
 generic script-path=https://raw.githubusercontent.com/xxzhil/loon/main/IP-Info.js, tag=出口IP信息, timeout=30, img-url=globe.system
+
+cron "*/15 * * * *" script-path=https://raw.githubusercontent.com/xxzhil/loon/main/IP-Info.js, tag=出口IP信息·定时刷新, timeout=30, img-url=globe.system
