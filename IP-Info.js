@@ -23,13 +23,13 @@ function flagEmoji(cc) {
 
 function finish(lines, ok) {
   // 内容区样式:Kaggle 模型设计(粉彩渐变卡片),字体栈经 Muse 修正为 iOS 手写感字体打头
-  var card =
+  // 真机实测(2026-11-12):Loon 只渲染文字层 <p> 的样式,外层 div 的背景/对齐不生效,故全部样式挂在 <p> 上
+  var style =
     "background: linear-gradient(135deg, #ff9a9e, #fadfd8);" +
     "border-radius: 15px;" +
     "padding: 20px 14px;" +
     "box-shadow: 0 4px 14px rgba(255, 154, 158, 0.45);" +
-    "text-align: center;";
-  var text =
+    "text-align: center;" +
     "font-family: 'Chalkboard SE', 'Comic Sans MS', 'Marker Felt', 'Apple Color Emoji', -apple-system, sans-serif;" +
     "color: #333;" +
     "font-size: 16px;" +
@@ -37,7 +37,7 @@ function finish(lines, ok) {
     "line-height: 1.8;" +
     "margin: 0;" +
     "text-shadow: 1px 1px 2px #fff;";
-  var html = '<div style="' + card + '"><p style="' + text + '">' + lines.join("</br>") + "</p></div>";
+  var html = '<p style="' + style + '">' + lines.join("</br>") + "</p>";
   $done({
     title: "🌐 出口IP信息",
     content: lines.join("\n"),
