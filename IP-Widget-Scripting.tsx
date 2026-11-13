@@ -1,4 +1,9 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7.4:配色整体换成「深色鲜明」版 —— 原来的值颜色是给浅色背景设计的 700 级深色调
+//        (蓝 #1971C2 / 绿 #2B8A3E 等),压在深色照片壁纸上发闷;延迟数字更是用的深灰
+//        #495057,几乎看不见。现全部提亮到 400 级(绿 #51CF66 / 红 #FF6B6B / 蓝 #4DABF7
+//        / 粉 #F06595 / 紫 #9775FA / 青 #3BC9DB / 橙 #FFA94D),延迟与时区改近白色,
+//        「未知」与更新时间改浅灰 #ADB5BD。布局与数据不变。
 // v1.7.3:把「服务状态」的数据源抽成文件里的 CONFIG 区(见 SVC_SHORT 上方)—— 换成自己的 Uptime Kuma
 //        状态页只改两行;没有状态页把开关关掉,那两块自动隐藏。其余功能对任何人开箱即用。
 // v1.7.2:修两处截断 —— 归属地「Hong Kong · Central」在左栏一行放不下且不换行,改为按估算宽度
@@ -76,7 +81,7 @@ type StatusInfo = {
 const UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
 
-const UNKNOWN: ServiceStatus = { text: "未知", color: "#999999" }
+const UNKNOWN: ServiceStatus = { text: "未知", color: "#ADB5BD" }
 
 function flagEmoji(cc: string): string {
   if (!cc || cc.length !== 2) return "🌐"
@@ -188,7 +193,7 @@ function riskLabel(risk: number): string {
 }
 
 function riskColor(risk: number): string {
-  return risk <= 33 ? "#2B8A3E" : risk <= 66 ? "#F08C00" : "#E03131"
+  return risk <= 33 ? "#51CF66" : risk <= 66 ? "#FFA94D" : "#FF6B6B"
 }
 
 // ---- 流媒体与 AI 探测(经当前出口访问各服务,判断解锁与地区) ----
@@ -200,10 +205,10 @@ async function probeNetflix(): Promise<ServiceStatus> {
     ])
     const a = rs[0].status
     const b = rs[1].status
-    if (a === 403 || b === 403) return { text: "未知 · 疑被拦", color: "#999999" }
-    if (a === 200 && b === 200) return { text: "全解锁", color: "#2B8A3E" }
-    if (a === 200) return { text: "仅自制剧", color: "#F08C00" }
-    return { text: "未提供服务", color: "#E03131" }
+    if (a === 403 || b === 403) return { text: "未知 · 疑被拦", color: "#ADB5BD" }
+    if (a === 200 && b === 200) return { text: "全解锁", color: "#51CF66" }
+    if (a === 200) return { text: "仅自制剧", color: "#FFA94D" }
+    return { text: "未提供服务", color: "#FF6B6B" }
   } catch (e) {
     return UNKNOWN
   }
@@ -215,9 +220,9 @@ async function probeYouTube(): Promise<ServiceStatus> {
     const m =
       r.text.match(/"gl"\s*:\s*"([A-Z]{2})"/) ||
       r.text.match(/"countryCode"\s*:\s*"([A-Z]{2})"/)
-    if (m) return { text: `可用 · ${m[1]}`, color: "#2B8A3E" }
+    if (m) return { text: `可用 · ${m[1]}`, color: "#51CF66" }
     if (r.text.length > 5000 && r.text.indexOf("Premium") >= 0)
-      return { text: "可用", color: "#2B8A3E" }
+      return { text: "可用", color: "#51CF66" }
     return UNKNOWN
   } catch (e) {
     return UNKNOWN
@@ -230,7 +235,7 @@ async function probeTikTok(): Promise<ServiceStatus> {
     const m =
       r.text.match(/"region"\s*:\s*"([A-Z]{2})"/i) ||
       r.text.match(/"storeCountry"\s*:\s*"([A-Z]{2})"/i)
-    if (m) return { text: `可用 · ${m[1].toUpperCase()}`, color: "#2B8A3E" }
+    if (m) return { text: `可用 · ${m[1].toUpperCase()}`, color: "#51CF66" }
     return UNKNOWN
   } catch (e) {
     return UNKNOWN
@@ -241,7 +246,7 @@ async function probeChatGPT(): Promise<ServiceStatus> {
   try {
     const r = await fetchText("https://chatgpt.com/cdn-cgi/trace", 5000)
     const m = r.text.match(/loc=([A-Z]{2})/)
-    if (m) return { text: `可用 · ${m[1]}`, color: "#2B8A3E" }
+    if (m) return { text: `可用 · ${m[1]}`, color: "#51CF66" }
     return UNKNOWN
   } catch (e) {
     return UNKNOWN
@@ -363,7 +368,7 @@ function SectionTitle(props: { text: string }) {
 
 function UptimeRow(props: { name: string; ratio: number | null }) {
   const pct = props.ratio === null ? null : Math.round(props.ratio * 1000) / 10
-  const color = pct === null ? "#999999" : pct >= 99.9 ? "#2B8A3E" : pct >= 99 ? "#F08C00" : "#E03131"
+  const color = pct === null ? "#ADB5BD" : pct >= 99.9 ? "#51CF66" : pct >= 99 ? "#FFA94D" : "#FF6B6B"
   const barW = 42
   const fillW = pct === null ? 0 : Math.max(2, Math.round((barW * pct) / 100))
   return (
@@ -437,22 +442,22 @@ function WidgetView(props: {
 
   const infoRows: any[] = []
   if (d.ip)
-    infoRows.push(<Row key="ip" label="🖥 出口IP:" value={d.ip} color="#D6336C" size={rowSize} />)
+    infoRows.push(<Row key="ip" label="🖥 出口IP:" value={d.ip} color="#F06595" size={rowSize} />)
   if (d.country)
     infoRows.push(
-      <Row key="loc" label="📍 归属地:" value={loc} color="#1971C2" size={rowSize} />
+      <Row key="loc" label="📍 归属地:" value={loc} color="#4DABF7" size={rowSize} />
     )
   if (!small && d.isp)
     infoRows.push(
-      <Row key="isp" label="📡 运营商:" value={d.isp} color="#E8590C" size={rowSize} />
+      <Row key="isp" label="📡 运营商:" value={d.isp} color="#FFA94D" size={rowSize} />
     )
   if (!small && d.asText)
     infoRows.push(
-      <Row key="as" label="🔢 AS:" value={d.asText} color="#6741D9" size={rowSize} />
+      <Row key="as" label="🔢 AS:" value={d.asText} color="#9775FA" size={rowSize} />
     )
   if (q.typeText)
     infoRows.push(
-      <Row key="type" label="🏷 类型:" value={q.typeText} color="#1098AD" size={rowSize} />
+      <Row key="type" label="🏷 类型:" value={q.typeText} color="#3BC9DB" size={rowSize} />
     )
   if (q.risk !== null)
     infoRows.push(
@@ -473,14 +478,14 @@ function WidgetView(props: {
           key={`svc${i}`}
           label={`${it.name}:`}
           value={it.up ? `正常${it.ping !== null ? ` · ${it.ping}ms` : ""}` : "异常"}
-          color={it.up ? "#2B8A3E" : "#E03131"}
+          color={it.up ? "#51CF66" : "#FF6B6B"}
           size={11}
         />
       )
     })
   } else if (wide && STATUS_ENABLED) {
     svcRows.push(
-      <Row key="svcx" label="状态页:" value="不可达" color="#E03131" size={11} />
+      <Row key="svcx" label="状态页:" value="不可达" color="#FF6B6B" size={11} />
     )
   }
 
@@ -505,7 +510,7 @@ function WidgetView(props: {
         </Text>
         <Spacer />
         {!small ? (
-          <Text font={9} foregroundStyle="secondaryLabel">
+          <Text font={9} foregroundStyle="#ADB5BD">
             {`更新于 ${props.time}`}
           </Text>
         ) : null}
@@ -516,20 +521,20 @@ function WidgetView(props: {
           <VStack alignment="leading" spacing={3} frame={{ maxWidth: "infinity" }}>
             {infoRows}
             {d.org ? (
-              <Row label="🏢 组织:" value={d.org} color="#2B8A3E" size={rowSize} />
+              <Row label="🏢 组织:" value={d.org} color="#51CF66" size={rowSize} />
             ) : null}
-            {d.tz ? <Row label="🕐 时区:" value={d.tz} color="#868E96" size={rowSize} /> : null}
+            {d.tz ? <Row label="🕐 时区:" value={d.tz} color="#CED4DA" size={rowSize} /> : null}
             <SectionTitle text="⚡ 延迟" />
             <Row
               label="☁️ CF:"
               value={ex.cfMs !== null ? `${ex.cfMs} ms` : "超时"}
-              color="#495057"
+              color="#E9ECEF"
               size={rowSize}
             />
             <Row
               label="🔍 Google:"
               value={ex.ggMs !== null ? `${ex.ggMs} ms` : "超时"}
-              color="#495057"
+              color="#E9ECEF"
               size={rowSize}
             />
           </VStack>
@@ -576,7 +581,7 @@ function WidgetView(props: {
 function ErrorView() {
   return (
     <VStack alignment="leading" padding={16}>
-      <Text font={13} foregroundStyle="#E03131">
+      <Text font={13} foregroundStyle="#FF6B6B">
         🛑 查询失败,请检查网络后重试
       </Text>
     </VStack>
