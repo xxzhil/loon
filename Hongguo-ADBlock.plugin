@@ -1,0 +1,39 @@
+#!name=红果短剧去广告
+#!desc=拦截红果短剧的穿山甲广告 SDK、广告素材签名域与字节广告接口，减少开屏与剧集插播广告。域名规则无需 MITM 即可生效；[Rewrite] 与 [MITM] 部分需开启 MITM，若开启后红果打不开（证书固定），删掉本文件的 [MITM] 段即可退回纯域名版。
+#!author=Muse
+#!homepage=https://github.com/xxzhil/loon
+#!icon=https://status.vyxh.top/hongguo-icon.png
+#!date=2026-11-20
+
+[Rule]
+# 穿山甲 / Pangle 广告 SDK（红果广告与抖音同源，走字节穿山甲下发）
+DOMAIN-KEYWORD,pangolin,REJECT
+DOMAIN-SUFFIX,pglstatp-toutiao.com,REJECT
+DOMAIN-SUFFIX,pglstatp-toutiao-b.com,REJECT
+# 广告素材签名域（p3/p6/p9-ad-sign.byteimg.com）
+DOMAIN-KEYWORD,-ad-sign.byteimg.com,REJECT
+# 广告落地页跳转
+DOMAIN,zlink.ugsdk.cn,REJECT
+# 字节广告 API 子域（只拦明确的广告子域，不碰 snssdk / zijieapi 主 API 域，拦主域 App 会打不开）
+DOMAIN,ad.zijieapi.com,REJECT
+DOMAIN-REGEX,^ads[0-9]+-normal\\.zijieapi\\.com$,REJECT
+# 埋点 / 上报（不影响看剧，不想拦可整组删掉）
+DOMAIN,mon.toutiaocloud.net,REJECT
+DOMAIN,mon.toutiaocloud.com,REJECT
+DOMAIN,i.snssdk.com,REJECT
+DOMAIN,i-lq.snssdk.com,REJECT
+DOMAIN,is.snssdk.com,REJECT
+DOMAIN,is-lq.snssdk.com,REJECT
+DOMAIN-KEYWORD,applog.fqnovel.com,REJECT
+DOMAIN-KEYWORD,-misc.fqnovel.com,REJECT
+
+[Rewrite]
+# 红果自家 API 下发的广告（*.snssdk.com/api/ad/）：域名层看不出来，只能 MITM 后按路径拦。
+# 返回空 JSON 而不是断开连接，避免 SDK 把断开当成网络错误反复重试。需要 [MITM] 段生效才起作用。
+request if ${url} ~= /^https:\/\/[^/]*\.snssdk\.com\/api\/ad\// then reject_dict(200)
+request if ${url} ~= /^https:\/\/[^/]*pangolin-sdk-toutiao[^/]*\/api\/ad\/union\/sdk\// then reject_dict(200)
+
+[MITM]
+# 注意：*.snssdk.com 是字节主 API 域。若红果对它启用了证书固定，开启 MITM 后可能打不开 App；
+# 真遇到就删掉这一段（[Rewrite] 会随之失效），上面的域名规则照常工作，已能拦掉大部分广告。
+hostname = %APPEND% *.pangolin-sdk-toutiao.com, *.pangolin-sdk-toutiao-b.com, *.pangolin-sdk-toutiao1.com, *.snssdk.com
