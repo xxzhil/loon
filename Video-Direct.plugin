@@ -1,0 +1,23 @@
+#!name=影视站强制直连
+#!desc=把独播库、奈飞工厂及其播放 CDN 钉成直连（DIRECT），避免掉进代理兜底被节点带宽卡住。给 Conflux 的 sixian.dbku / sixian.netflixgc 两个扩展包配套使用；规则对全系统生效。独播库的海报图床 image.tmdb.org 在海外，故意不在名单里，让它继续走代理。
+#!author=Muse
+#!homepage=https://github.com/xxzhil/loon
+#!icon=https://status.vyxh.top/direct-icon.png
+#!date=2026-11-20
+
+[Rule]
+# 站点本体（页面与数据接口）
+DOMAIN-SUFFIX,dbku.tv,DIRECT
+DOMAIN-SUFFIX,netflixgc.com,DIRECT
+# 独播库播放
+DOMAIN-SUFFIX,dbokutv.com,DIRECT
+# 奈飞工厂海报（卧龙图床 + 百度图床；TMDB 图床在海外，不钉直连）
+DOMAIN-SUFFIX,wsyzy.org,DIRECT
+DOMAIN-SUFFIX,bfp261112.com,DIRECT
+DOMAIN,image.baidu.com,DIRECT
+# 奈飞工厂播放 CDN（多为资源站，域名带编号会轮换，用关键词覆盖整个家族）
+DOMAIN-KEYWORD,ffzy,DIRECT
+DOMAIN-KEYWORD,fengbao,DIRECT
+DOMAIN-KEYWORD,wsyzy,DIRECT
+DOMAIN-KEYWORD,lzcdn,DIRECT
+DOMAIN-SUFFIX,dytt-tvs.com,DIRECT
