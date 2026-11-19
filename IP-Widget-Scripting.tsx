@@ -1,4 +1,6 @@
 // 出口IP信息 — Scripting 版桌面小组件(粘贴到脚本项目的 widget.tsx)
+// v1.7.5:服务状态新增 Snell(监控 ID 13,2026-11-20 上线)—— SVC_SHORT 补短名;计数与
+//        可用率条本来就按状态页返回的监控列表动态生成,7→8 项自动适配,布局不变。
 // v1.7.4:配色整体换成「深色鲜明」版 —— 原来的值颜色是给浅色背景设计的 700 级深色调
 //        (蓝 #1971C2 / 绿 #2B8A3E 等),压在深色照片壁纸上发闷;延迟数字更是用的深灰
 //        #495057,几乎看不见。现全部提亮到 400 级(绿 #51CF66 / 红 #FF6B6B / 蓝 #4DABF7
@@ -303,6 +305,7 @@ const SVC_SHORT: Record<number, string> = {
   10: "状态页",
   11: "MiBot",
   12: "PM 中继",
+  13: "Snell",
 }
 
 async function loadStatus(): Promise<StatusInfo | null> {
