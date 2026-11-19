@@ -12,3 +12,14 @@
 DOMAIN-SUFFIX,push.apple.com,PROXY
 # Apple 全段地址：APNs 服务器全部位于 17.0.0.0/8（Apple 官方企业网络文档），兜住不走域名的直连 IP 连接
 IP-CIDR,17.0.0.0/8,PROXY,no-resolve
+# Apple 官方公布的 APNs 专用 IPv4 网段（均在上面的 17.0.0.0/8 之内，显式列出便于按需取舍）
+IP-CIDR,17.249.0.0/16,PROXY,no-resolve
+IP-CIDR,17.252.0.0/16,PROXY,no-resolve
+IP-CIDR,17.57.144.0/22,PROXY,no-resolve
+IP-CIDR,17.188.128.0/18,PROXY,no-resolve
+IP-CIDR,17.188.20.0/23,PROXY,no-resolve
+# Apple 官方公布的 APNs IPv6 网段
+IP-CIDR6,2620:149:a44::/48,PROXY,no-resolve
+IP-CIDR6,2403:300:a42::/48,PROXY,no-resolve
+IP-CIDR6,2403:300:a51::/48,PROXY,no-resolve
+IP-CIDR6,2a01:b740:a42::/48,PROXY,no-resolve
